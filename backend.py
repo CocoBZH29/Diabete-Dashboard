@@ -5,11 +5,11 @@ import joblib
 
 def load_split_df(dataset: str):
     if dataset == "Mean imputation":
-        df = pd.read_csv('data/mean_df.csv')
+        df = pd.read_csv('data/mean_df')
         results = joblib.load('models/results_Mean')
-        scaler = joblib.load('models/scaler_mean')
-        X_mean = df.drop("Output", axis=1)
-        y_mean = df['Output']
+        scaler = joblib.load('models/scaler_mean.pkl')
+        X_mean = df.drop("Outcome", axis=1)
+        y_mean = df['Outcome']
 
         _, X_mean_test, _, y_mean_test = train_test_split(
         X_mean, y_mean,
@@ -20,11 +20,11 @@ def load_split_df(dataset: str):
 
         return df, X_mean_test, y_mean_test, results, scaler
     else:
-        df = pd.read_csv('data/mice_df.csv')
-        results = joblib.load('models/resuls_Mice')
-        scaler = joblib.load('models/scaler_mice')
-        X_mice = df.drop("Output", axis=1)
-        y_mice = df['Output']
+        df = pd.read_csv('data/mice_df')
+        results = joblib.load('models/results_Mice')
+        scaler = joblib.load('models/scaler_mice.pkl')
+        X_mice = df.drop("Outcome", axis=1)
+        y_mice = df['Outcome']
 
         _, X_mice_test, _, y_mice_test = train_test_split(
         X_mice, y_mice,
