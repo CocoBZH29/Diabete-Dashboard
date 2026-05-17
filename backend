@@ -1,0 +1,39 @@
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import pandas as pd
+import joblib
+
+def load_split_df(dataset: str):
+    if dataset == "Mean imputation":
+        df = pd.read_csv('data/mean_df.csv')
+        results = joblib.load('models/results_Mean')
+        scaler = joblib.load('models/scaler_mean')
+        X_mean = df.drop("Output", axis=1)
+        y_mean = df['Output']
+
+        _, X_mean_test, _, y_mean_test = train_test_split(
+        X_mean, y_mean,
+        test_size= 0.2,
+        random_state=42,
+        stratify=y_mean
+        )
+
+        return df, X_mean_test, y_mean_test, results, scaler
+    else:
+        df = pd.read_csv('data/mice_df.csv')
+        results = joblib.load('models/resuls_Mice')
+        scaler = joblib.load('models/scaler_mice')
+        X_mice = df.drop("Output", axis=1)
+        y_mice = df['Output']
+
+        _, X_mice_test, _, y_mice_test = train_test_split(
+        X_mice, y_mice,
+        test_size= 0.2,
+        random_state=42,
+        stratify=y_mice
+        )
+
+        return df, X_mice_test, y_mice_test, results, scaler
+
+
+

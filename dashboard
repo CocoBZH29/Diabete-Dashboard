@@ -1,0 +1,154 @@
+import streamlit as st
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, roc_curve, auc
+from backend import load_splif_df
+
+st.set_page_config(page_title='Dashboard Diabète', page_icon='🩺', layout='wide')
+st.title("🩺 Prédiction du Diabète — Dashboard")
+
+st.sidebar.header("Paramètres")
+dataset = st.sidebar.selectbox("Dataset", ["Mean imputation", "MICE imputation"])
+model   = st.sidebar.selectbox("Modèle", ["KNN", "SVM", "RF"])
+
+df_used, X_test, y_test, results, scaler = load_splif_df(dataset)
+res = results[model]
+
+# =============================================
+# SECTION 1 — EDA
+# =============================================
+st.header("📊 Exploratory Data Analysis")
+
+# Infos générales
+col1, col2, col3 = st.columns(3)
+col1.metric("Lignes",    df_used.shape[0])
+col2.metric("Colonnes",  df_used.shape[1])
+col3.metric("% Diabétiques", f"{df_used['Outcome'].mean()*100:.1f}%")
+
+# Aperçu du dataset
+st.subheader("Aperçu du dataset")
+st.dataframe(df_used.head(10), use_container_width=True)
+
+# Distribution des variables
+st.subheader("Distribution des variables")
+features = [col for col in df_used.columns if col != 'Outcome']
+col_select = st.selectbox("Choisir une variable", features)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+axes[0].hist(df_used[col_select], bins=30, color='steelblue', edgecolor='white')
+axes[0].set_title(f'Distribution — {col_select}')
+axes[0].set_xlabel(col_select)
+axes[0].set_ylabel('Fréquence')
+
+axes[1].boxplot(df_used[col_select].dropna())
+axes[1].set_title(f'Boxplot — {col_select}')
+plt.tight_layout()
+st.pyplot(fig)
+
+# Répartition des classes
+st.subheader("Répartition des classes")
+fig, ax = plt.subplots(figsize=(5, 3))
+counts = df_used['Outcome'].value_counts()
+ax.bar(counts.index, counts.values, color=['steelblue', 'tomato'])
+ax.set_xticks([0, 1])
+ax.set_xticklabels(['Non diabétique', 'Diabétique'])
+ax.set_ylabel('Nombre de patients')
+st.pyplot(fig)
+
+# Heatmap corrélation
+st.subheader("Matrice de corrélation")
+fig, ax = plt.subplots(figsize=(10, 6))
+corr = df_used.corr()
+im = ax.imshow(corr, cmap='coolwarm', vmin=-1, vmax=1)
+plt.colorbar(im, ax=ax)
+ax.set_xticks(range(len(corr)))
+ax.set_yticks(range(len(corr)))
+ax.set_xticklabels(corr.columns, rotation=45, ha='right')
+ax.set_yticklabels(corr.columns)
+plt.tight_layout()
+st.pyplot(fig)
+
+# =============================================
+# SECTION 2 — RESULTS ANALYSIS
+# =============================================
+st.header(f"📈 Results Analysis — {model} ({dataset})")
+
+# Métriques
+from sklearn.metrics import precision_score, recall_score, f1_score
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("AUC-ROC",   f"{res['auc']:.3f}")
+col2.metric("Précision", f"{precision_score(y_test, res['y_pred']):.3f}")
+col3.metric("Rappel",    f"{recall_score(y_test,    res['y_pred']):.3f}")
+col4.metric("F1-Score",  f"{f1_score(y_test,        res['y_pred']):.3f}")
+
+# Matrice de confusion + Courbe ROC côte à côte
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Matrice de confusion")
+    fig, ax = plt.subplots()
+    cm = confusion_matrix(y_test, res['y_pred'])
+    ConfusionMatrixDisplay(cm, display_labels=['Non diab.', 'Diab.']).plot(ax=ax, cmap='Blues')
+    st.pyplot(fig)
+
+with col2:
+    st.subheader("Courbe ROC")
+    fig, ax = plt.subplots()
+    y_proba = res['model'].predict_proba(X_test)[:, 1]
+    fpr, tpr, _ = roc_curve(y_test, y_proba)
+    ax.plot(fpr, tpr, color='tomato', label=f'AUC = {res["auc"]:.3f}')
+    ax.plot([0, 1], [0, 1], 'k--')
+    ax.set_xlabel('Taux faux positifs')
+    ax.set_ylabel('Taux vrais positifs')
+    ax.set_title('Courbe ROC')
+    ax.legend()
+    st.pyplot(fig)
+
+# =============================================
+# SECTION 3 - Personal data
+# =============================================
+st.header("🔮 Prédiction personnalisée")
+
+cols = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 
+        'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+
+# Inputs utilisateur
+st.subheader("Entrez vos données")
+col1, col2 = st.columns(2)
+
+with col1:
+    pregnancies = st.number_input("Pregnancies",            min_value=0,   max_value=20,  value=1)
+    glucose     = st.number_input("Glucose",                min_value=0,   max_value=300, value=120)
+    bp          = st.number_input("Blood Pressure",         min_value=0,   max_value=200, value=70)
+    skin        = st.number_input("Skin Thickness",         min_value=0,   max_value=100, value=20)
+
+with col2:
+    insulin     = st.number_input("Insulin",                min_value=0,   max_value=900, value=80)
+    bmi         = st.number_input("BMI",                    min_value=0.0, max_value=70.0, value=25.0, step=0.1)
+    dpf         = st.number_input("Diabetes Pedigree Func", min_value=0.0, max_value=3.0,  value=0.5,  step=0.01)
+    age         = st.number_input("Age",                    min_value=1,   max_value=120, value=30)
+
+# Bouton de prédiction
+if st.button("🔍 Prédire"):
+    # Créer le DataFrame avec les données utilisateur
+    user_data = pd.DataFrame([[pregnancies, glucose, bp, skin, insulin, bmi, dpf, age]], columns=cols)
+
+    # Standardiser avec le scaler sauvegardé
+    user_scaled = scaler.transform(user_data)
+
+    # Prédiction
+    model_used  = results[model]['model']
+    prediction  = model_used.predict(user_scaled)[0]
+    proba       = model_used.predict_proba(user_scaled)[0][1]
+
+    # Afficher le résultat
+    st.divider()
+    if prediction == 1:
+        st.error(f"⚠️ Diabétique — Probabilité : {proba*100:.1f}%")
+    else:
+        st.success(f"✅ Non diabétique — Probabilité : {proba*100:.1f}%")
+
+    # Jauge de probabilité
+    st.progress(float(proba), text=f"Risque : {proba*100:.1f}%")
+
