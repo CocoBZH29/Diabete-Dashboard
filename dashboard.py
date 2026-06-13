@@ -2,14 +2,14 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix, roc_curve, auc
-from backend import load_split_df
+from backend import load_split_df, plot_shap
 
 st.set_page_config(page_title='Dashboard Diabète', page_icon='🩺', layout='wide')
 st.title("🩺 Prédiction du Diabète — Dashboard")
 
 st.sidebar.header("Paramètres")
 dataset = st.sidebar.selectbox("Dataset", ["Mean imputation", "MICE imputation"])
-model   = st.sidebar.selectbox("Modèle", ["KNN", "SVM", "RF"])
+model   = st.sidebar.selectbox("Modèle", ["KNN", "SVM", "RF", "XGB"])
 
 df_used, X_test, y_test, results, scaler = load_split_df(dataset)
 res = results[model]
@@ -104,6 +104,11 @@ with st.expander(f"📈 Results Analysis — {model} ({dataset})"):
         ax.set_title('Courbe ROC')
         ax.legend()
         st.pyplot(fig)
+
+    st.subheader("SHAP Values")
+    model_used = res['models']
+    fig = plot_shap(model_used, X_test, model)
+    st.pyplot(fig)
 
 # =============================================
 # SECTION 3 - Personal data
